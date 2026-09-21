@@ -42,7 +42,8 @@
     <input id="item" placeholder="Item (e.g. 64x Netherite Scrap)" required maxlength="60">
     <input id="price" placeholder="ex: $1K" required maxlength="30">
     <input id="qty" type="number" min="1" value="1">
-    <select id="cat"><option>Blocks</option><option>Ores</option><option>Food</option><option>Enchanted</option><option>Redstone</option><option>Mobs</option><option>Other</option></select>
+    <select id="cat" onchange="catChange()"><option>Blocks</option><option>Ores</option><option>Food</option><option>Enchanted</option><option>Redstone</option><option>Mobs</option><option>Other</option></select>
+    <input id="customCat" placeholder="Custom category (e.g. Pets)" maxlength="20" style="display:none">
     <textarea id="desc" class="full" placeholder="Description / location"></textarea>
     <button class="full" type="submit">+ List item (you'll get a delete PIN)</button>
   </form>
@@ -57,15 +58,43 @@
   <div id="count"></div><div id="grid"></div>
 </div>
 <footer>Created by FineSteve9009 / Sizls_00</footer>
+<audio id="aud" loop preload="auto" style="display:none"></audio>
 <script>
 (function(){var s=document.getElementById('sky');for(var i=0;i<150;i++){var d=document.createElement('div');d.className='star';var sz=Math.random()*2+1;d.style.width=d.style.height=sz+'px';d.style.left=Math.random()*100+'%';d.style.top=Math.random()*70+'%';d.style.animationDelay=(Math.random()*2.5)+'s';s.appendChild(d);}})();
+(function(){
+  var a=document.getElementById('aud');
+  var tries=['music.mp3','./music.mp3','GigaChad Theme ringtone.mp3','giga-chad-theme.mp3'];
+  var i=0;a.volume=0.6;
+  a.addEventListener('error',function(){i++;if(i<tries.length){a.src=tries[i];tryPlay();}});
+  function tryPlay(){var p=a.play();if(p&&p.catch)p.catch(function(){});}
+  a.src=tries[0];tryPlay();
+  function kick(){tryPlay();document.removeEventListener('pointerdown',kick);document.removeEventListener('keydown',kick);}
+  document.addEventListener('pointerdown',kick);document.addEventListener('keydown',kick);
+})();
+function catChange(){
+  var v=document.getElementById('cat').value;
+  document.getElementById('customCat').style.display=(v==='Other')?'block':'none';
+}
 var KEY='bagelMarketV4',items=[];
 try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){items=[];}
 function save(){localStorage.setItem(KEY,JSON.stringify(items));}
-var cats=['Blocks','Ores','Food','Enchanted','Redstone','Mobs','Other'];
-var fc=document.getElementById('fcat');cats.forEach(function(c){var o=document.createElement('option');o.textContent=c;fc.appendChild(o);});
+var BASECATS=['Blocks','Ores','Food','Enchanted','Redstone','Mobs','Other'];
+function refreshFilters(){
+  var fc=document.getElementById('fcat'),cur=fc.value;
+  fc.innerHTML='<option value="">All</option>';
+  var all=BASECATS.slice();
+  items.forEach(function(o){if(o.cat&&all.indexOf(o.cat)<0)all.push(o.cat);});
+  all.forEach(function(c){var o=document.createElement('option');o.textContent=c;fc.appendChild(o);});
+  fc.value=cur;
+}
+refreshFilters();
 function isIGN(s){return /^[a-zA-Z0-9_]{3,16}$/.test(s);}
 function priceOf(o){return String(o.priceStr!=null?o.priceStr:o.price||'');}
+function chosenCat(){
+  var v=document.getElementById('cat').value;
+  if(v==='Other'){var c=document.getElementById('customCat').value.trim().slice(0,20);return c||'Other';}
+  return v;
+}
 document.getElementById('form').onsubmit=function(e){
   e.preventDefault();
   var v=function(id){return document.getElementById(id).value.trim();};
@@ -73,13 +102,13 @@ document.getElementById('form').onsubmit=function(e){
   document.getElementById('ignErr').style.display='none';
   if(!v('price')){alert('Enter a price');return;}
   var pin=''+Math.floor(1000+Math.random()*9000);
-  items.unshift({id:Date.now(),seller:ign,item:v('item'),priceStr:v('price'),qty:+v('qty')||1,cat:document.getElementById('cat').value,desc:v('desc'),pin:pin,t:Date.now()});
-  save();render();e.target.reset();alert('Listed! Delete PIN: '+pin);
+  items.unshift({id:Date.now(),seller:ign,item:v('item'),priceStr:v('price'),qty:+v('qty')||1,cat:chosenCat(),desc:v('desc'),pin:pin,t:Date.now()});
+  save();refreshFilters();render();e.target.reset();catChange();alert('Listed! Delete PIN: '+pin);
 };
-document.getElementById('q').oninput=render;fc.onchange=render;document.getElementById('sort').onchange=render;
+document.getElementById('q').oninput=render;document.getElementById('fcat').onchange=render;document.getElementById('sort').onchange=render;
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function render(){
-  var q=document.getElementById('q').value.toLowerCase(),c=fc.value,s=document.getElementById('sort').value;
+  var q=document.getElementById('q').value.toLowerCase(),c=document.getElementById('fcat').value,s=document.getElementById('sort').value;
   var list=items.filter(function(it){return(!c||it.cat===c)&&(!q||(it.item+' '+it.seller+' '+priceOf(it)).toLowerCase().indexOf(q)>-1);});
   if(s==='az')list.sort(function(a,b){return priceOf(a).localeCompare(priceOf(b));});else list.sort(function(a,b){return b.t-a.t;});
   document.getElementById('count').textContent=list.length+' listing(s)';
@@ -93,14 +122,14 @@ function render(){
     g.appendChild(d);
   });
 }
-function delItem(id){var it=null;for(var i=0;i<items.length;i++)if(items[i].id===id)it=items[i];if(!it)return;var p=prompt('PIN for '+it.seller+':');if(p===null)return;if(p!==it.pin){alert('Wrong PIN.');return;}items=items.filter(function(x){return x.id!==id;});save();render();}
+function delItem(id){var it=null;for(var i=0;i<items.length;i++)if(items[i].id===id)it=items[i];if(!it)return;var p=prompt('PIN for '+it.seller+':');if(p===null)return;if(p!==it.pin){alert('Wrong PIN.');return;}items=items.filter(function(x){return x.id!==id;});save();refreshFilters();render();}
 function exportJSON(){prompt('Copy JSON:',JSON.stringify(items));}
 function importBox(){var d=document.getElementById('importDiv');d.style.display=d.style.display==='none'?'block':'none';}
 function doImport(){
   var t=document.getElementById('importTxt').value.trim();if(!t)return;
-  try{var arr=JSON.parse(t);if(Array.isArray(arr)){arr.forEach(function(o){if(o.seller&&o.item&&isIGN(String(o.seller)))items.unshift({id:Date.now()+Math.random(),seller:String(o.seller),item:String(o.item),priceStr:String(o.priceStr!=null?o.priceStr:o.price),qty:+o.qty||1,cat:o.cat||'Other',desc:o.desc||'',pin:String(o.pin||Math.floor(1000+Math.random()*9000)),t:Date.now()});});save();render();return;}}catch(e){}
-  t.split('\n').forEach(function(line){var p=line.split('|').map(function(s){return s.trim();});if(p.length<2||!isIGN(p[0]))return;items.push({id:Date.now()+Math.random(),seller:p[0],item:p[1],priceStr:p[2]||'$1',qty:+p[3]||1,cat:p[4]||'Other',desc:p[5]||'',pin:''+Math.floor(1000+Math.random()*9000),t:Date.now()});});
-  save();render();
+  try{var arr=JSON.parse(t);if(Array.isArray(arr)){arr.forEach(function(o){if(o.seller&&o.item&&isIGN(String(o.seller)))items.unshift({id:Date.now()+Math.random(),seller:String(o.seller),item:String(o.item),priceStr:String(o.priceStr!=null?o.priceStr:o.price),qty:+o.qty||1,cat:String(o.cat||'Other').slice(0,20),desc:o.desc||'',pin:String(o.pin||Math.floor(1000+Math.random()*9000)),t:Date.now()});});save();refreshFilters();render();return;}}catch(e){}
+  t.split('\n').forEach(function(line){var p=line.split('|').map(function(s){return s.trim();});if(p.length<2||!isIGN(p[0]))return;items.push({id:Date.now()+Math.random(),seller:p[0],item:p[1],priceStr:p[2]||'$1',qty:+p[3]||1,cat:(p[4]||'Other').slice(0,20),desc:p[5]||'',pin:''+Math.floor(1000+Math.random()*9000),t:Date.now()});});
+  save();refreshFilters();render();
 }
 render();
 window.addEventListener('load',function(){setTimeout(function(){document.getElementById('loader').classList.add('hide');},1200);});

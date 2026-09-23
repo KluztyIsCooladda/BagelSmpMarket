@@ -33,8 +33,8 @@
 </head>
 <body>
 <div id="sky"><div id="moon"></div></div>
-<div id="loader"><div>🥯 BagelSMP Market<br><span>Created by FineSteve9009 / Sizls_00</span></div></div>
-<header><h1>🥯 BagelSMP Market</h1><p>In-game IGNs only</p></header>
+<div id="loader"><div> 🥯 BagelSMP Market<br><span>Created by FineSteve9009 / Sizls_00</span></div></div>
+<header><h1> 🥯 BagelSMP Market</h1><p>In-game IGNs only </p></header>
 <div id="wrap">
   <form id="form">
     <input id="seller" class="full" placeholder="Minecraft IGN (3-16 chars)" maxlength="16" required>
@@ -66,9 +66,9 @@
   var tries=['music.mp3','./music.mp3','GigaChad Theme ringtone.mp3','giga-chad-theme.mp3'];
   var i=0;a.volume=0.6;
   a.addEventListener('error',function(){i++;if(i<tries.length){a.src=tries[i];tryPlay();}});
-  function tryPlay(){var p=a.play();if(p&&p.catch)p.catch(function(){});}
+  function tryPlay(ok){var p=a.play();if(p&&p.then)p.then(function(){if(ok)ok();}).catch(function(){});}
   a.src=tries[0];tryPlay();
-  function kick(){tryPlay();document.removeEventListener('pointerdown',kick);document.removeEventListener('keydown',kick);}
+  function kick(){tryPlay(function(){document.removeEventListener('pointerdown',kick);document.removeEventListener('keydown',kick);});}
   document.addEventListener('pointerdown',kick);document.addEventListener('keydown',kick);
 })();
 function catChange(){
@@ -90,6 +90,7 @@ function refreshFilters(){
 refreshFilters();
 function isIGN(s){return /^[a-zA-Z0-9_]{3,16}$/.test(s);}
 function priceOf(o){return String(o.priceStr!=null?o.priceStr:o.price||'');}
+function priceNum(o){var s=priceOf(o).replace(/[$, ]/g,'').toUpperCase(),m=s.match(/^([0-9]*\.?[0-9]+)([KMBT])?$/);if(!m)return Infinity;var n=parseFloat(m[1]),x={K:1e3,M:1e6,B:1e9,T:1e12};return n*(x[m[2]]||1);}
 function chosenCat(){
   var v=document.getElementById('cat').value;
   if(v==='Other'){var c=document.getElementById('customCat').value.trim().slice(0,20);return c||'Other';}
@@ -102,15 +103,15 @@ document.getElementById('form').onsubmit=function(e){
   document.getElementById('ignErr').style.display='none';
   if(!v('price')){alert('Enter a price');return;}
   var pin=''+Math.floor(1000+Math.random()*9000);
-  items.unshift({id:Date.now(),seller:ign,item:v('item'),priceStr:v('price'),qty:+v('qty')||1,cat:chosenCat(),desc:v('desc'),pin:pin,t:Date.now()});
+  items.unshift({id:Date.now()+Math.random(),seller:ign,item:v('item').slice(0,60),priceStr:v('price').slice(0,30),qty:Math.max(1,+v('qty')||1),cat:chosenCat(),desc:v('desc').slice(0,500),pin:pin,t:Date.now()});
   save();refreshFilters();render();e.target.reset();catChange();alert('Listed! Delete PIN: '+pin);
 };
 document.getElementById('q').oninput=render;document.getElementById('fcat').onchange=render;document.getElementById('sort').onchange=render;
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function render(){
   var q=document.getElementById('q').value.toLowerCase(),c=document.getElementById('fcat').value,s=document.getElementById('sort').value;
-  var list=items.filter(function(it){return(!c||it.cat===c)&&(!q||(it.item+' '+it.seller+' '+priceOf(it)).toLowerCase().indexOf(q)>-1);});
-  if(s==='az')list.sort(function(a,b){return priceOf(a).localeCompare(priceOf(b));});else list.sort(function(a,b){return b.t-a.t;});
+  var list=items.filter(function(it){return(!c||it.cat===c)&&(!q||(it.item+' '+it.seller+' '+priceOf(it)+' '+it.cat+' '+(it.desc||'')).toLowerCase().indexOf(q)>-1);});
+  if(s==='az')list.sort(function(a,b){var x=priceNum(a),y=priceNum(b);if(x===Infinity&&y===Infinity)return priceOf(a).localeCompare(priceOf(b));return x-y;});else list.sort(function(a,b){return b.t-a.t;});
   document.getElementById('count').textContent=list.length+' listing(s)';
   var g=document.getElementById('grid');g.innerHTML='';
   list.forEach(function(it){
@@ -127,8 +128,8 @@ function exportJSON(){prompt('Copy JSON:',JSON.stringify(items));}
 function importBox(){var d=document.getElementById('importDiv');d.style.display=d.style.display==='none'?'block':'none';}
 function doImport(){
   var t=document.getElementById('importTxt').value.trim();if(!t)return;
-  try{var arr=JSON.parse(t);if(Array.isArray(arr)){arr.forEach(function(o){if(o.seller&&o.item&&isIGN(String(o.seller)))items.unshift({id:Date.now()+Math.random(),seller:String(o.seller),item:String(o.item),priceStr:String(o.priceStr!=null?o.priceStr:o.price),qty:+o.qty||1,cat:String(o.cat||'Other').slice(0,20),desc:o.desc||'',pin:String(o.pin||Math.floor(1000+Math.random()*9000)),t:Date.now()});});save();refreshFilters();render();return;}}catch(e){}
-  t.split('\n').forEach(function(line){var p=line.split('|').map(function(s){return s.trim();});if(p.length<2||!isIGN(p[0]))return;items.push({id:Date.now()+Math.random(),seller:p[0],item:p[1],priceStr:p[2]||'$1',qty:+p[3]||1,cat:(p[4]||'Other').slice(0,20),desc:p[5]||'',pin:''+Math.floor(1000+Math.random()*9000),t:Date.now()});});
+  try{var arr=JSON.parse(t);if(Array.isArray(arr)){arr.forEach(function(o){if(o.seller&&o.item&&isIGN(String(o.seller)))items.unshift({id:Date.now()+Math.random(),seller:String(o.seller).slice(0,16),item:String(o.item).slice(0,60),priceStr:String(o.priceStr!=null?o.priceStr:o.price||'').slice(0,30),qty:Math.max(1,+o.qty||1),cat:String(o.cat||'Other').trim().slice(0,20)||'Other',desc:String(o.desc||'').slice(0,500),pin:''+Math.floor(1000+Math.random()*9000),t:Date.now()});});save();refreshFilters();render();return;}}catch(e){}
+  t.split('\n').forEach(function(line){var p=line.split('|').map(function(s){return s.trim();});if(p.length<2||!isIGN(p[0]))return;items.push({id:Date.now()+Math.random(),seller:p[0].slice(0,16),item:p[1].slice(0,60),priceStr:(p[2]||'$1').slice(0,30),qty:Math.max(1,+p[3]||1),cat:(p[4]||'Other').trim().slice(0,20)||'Other',desc:(p[5]||'').slice(0,500),pin:''+Math.floor(1000+Math.random()*9000),t:Date.now()});});
   save();refreshFilters();render();
 }
 render();
